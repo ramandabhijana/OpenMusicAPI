@@ -19,10 +19,9 @@ class SongsService {
   }) {
     const id = nanoid(16);
     const createdAt = new Date();
-    const updatedAt = createdAt;
     const result = await this._pool.query({
-      text: 'INSERT INTO songs VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-      values: [id, title, year, genre, performer, duration, albumId, createdAt, updatedAt],
+      text: 'INSERT INTO songs VALUES($1, $2, $3, $4, $5, $6, $7, $8, $8) RETURNING id',
+      values: [id, title, year, genre, performer, duration, albumId, createdAt],
     });
     const songId = result.rows[0]?.id;
     if (!songId) {
@@ -63,11 +62,11 @@ class SongsService {
       text: 'SELECT id, title, year, genre, performer, duration, album_id FROM songs WHERE id = $1',
       values: [id],
     });
-    const rowsAreEmpty = !result.rows.length;
+    const rowsAreEmpty = !result.rowCount;
     if (rowsAreEmpty) {
       throw new NotFoundError(`Lagu dengan id=${id} tidak ditemukan`);
     }
-    return result.rows.map(mapDBToModel)[0];
+    return mapDBToModel(result.rows[0]);
   }
 
   async editSongById(
