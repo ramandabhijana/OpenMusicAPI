@@ -1,5 +1,3 @@
-/* eslint-disable camelcase */
-
 exports.up = (pgm) => {
   pgm.createTable('songs', {
     id: {
@@ -26,7 +24,7 @@ exports.up = (pgm) => {
       type: 'INT',
     },
     album_id: {
-      type: 'VARCHAR(32)',
+      type: 'VARCHAR(50)',
       references: '"albums"',
       onDelete: 'cascade',
     },
