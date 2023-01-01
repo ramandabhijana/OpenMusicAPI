@@ -31,4 +31,23 @@ const interveneInFailedResponse = (server) => {
   });
 };
 
-module.exports = interveneInFailedResponse;
+const registerAuthStrategy = (server) => {
+  server.auth.strategy('openmusic_jwt', 'jwt', {
+    keys: process.env.ACCESS_TOKEN_KEY,
+    verify: {
+      aud: false,
+      iss: false,
+      sub: false,
+      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+    },
+    validate: (artifacts) => ({
+      isValid: true,
+      credentials: {
+        credentialId: artifacts.decoded.payload.userId,
+        username: artifacts.decoded.payload.username,
+      },
+    }),
+  });
+};
+
+module.exports = { interveneInFailedResponse, registerAuthStrategy };
