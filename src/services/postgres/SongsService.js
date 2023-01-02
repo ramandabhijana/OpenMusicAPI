@@ -93,11 +93,15 @@ class SongsService {
   }
 
   async deleteSongById(id) {
-    const result = await this._pool.query({
-      text: 'DELETE FROM songs WHERE id = $1 RETURNING id',
-      values: [id],
-    });
-    const songId = result.rows[0]?.id;
+    const result = await this._pool.query(
+      `
+      INSERT INTO deleted_songs
+      SELECT * FROM songs
+      WHERE id = '${id}';
+      DELETE FROM songs WHERE id = '${id}' RETURNING id;
+      `,
+    );
+    const songId = result[1].rows[0]?.id;
     if (!songId) {
       throw new NotFoundError(`Gagal menghapus Lagu. Alasan: lagu dengan id=${id} tidak ditemukan`);
     }
