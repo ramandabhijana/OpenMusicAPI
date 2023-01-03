@@ -4,8 +4,8 @@ exports.up = (pgm) => {
       type: 'VARCHAR(50)',
       primaryKey: true,
     },
-    title: {
-      type: 'TEXT',
+    song_id: {
+      type: 'VARCHAR(50)',
       notNull: true,
     },
     username: {

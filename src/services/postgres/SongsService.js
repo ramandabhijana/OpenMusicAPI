@@ -93,15 +93,29 @@ class SongsService {
   }
 
   async deleteSongById(id) {
-    const result = await this._pool.query({
-      text: 'DELETE FROM songs WHERE id = $1 RETURNING id',
-      values: [id],
-    });
-    const songId = result.rows[0]?.id;
-    if (!songId) {
-      throw new NotFoundError(`Gagal menghapus Lagu. Alasan: lagu dengan id=${id} tidak ditemukan`);
+    const client = await this._pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'INSERT INTO deleted_songs SELECT * FROM songs WHERE id = $1',
+        [id],
+      );
+      const deleteSongResult = await client.query(
+        'DELETE FROM songs WHERE id = $1 RETURNING id',
+        [id],
+      );
+      await client.query('COMMIT');
+      const songId = deleteSongResult.rows[0]?.id;
+      if (!songId) {
+        throw new NotFoundError(`Gagal menghapus Lagu. Alasan: lagu dengan id=${id} tidak ditemukan`);
+      }
+      return songId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    return songId;
   }
 }
 

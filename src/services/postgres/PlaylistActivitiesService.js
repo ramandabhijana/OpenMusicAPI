@@ -24,8 +24,21 @@ class PlaylistActivitiesService {
   async getActivitiesByPlaylistId(id, userId) {
     await this._playlistsService.verifyPlaylistAccess(id, userId);
     const result = await this._pool.query({
-      text: 'SELECT username, title, action, time FROM playlist_activities WHERE playlist_id = $1 ORDER BY time ASC',
-      values: [id],
+      text: `
+      SELECT username, s.title, action, time 
+      FROM playlist_activities AS pa
+      LEFT JOIN songs AS s
+      ON s.id = pa.song_id
+      WHERE playlist_id = $1 AND action = $2
+      UNION
+      SELECT username, ds.title, action, time 
+      FROM playlist_activities AS pa
+      LEFT JOIN deleted_songs AS ds
+      ON ds.id = pa.song_id
+      WHERE playlist_id = $1 AND action = $3
+      ORDER BY time ASC
+      `,
+      values: [id, 'add', 'delete'],
     });
     return result.rows;
   }
