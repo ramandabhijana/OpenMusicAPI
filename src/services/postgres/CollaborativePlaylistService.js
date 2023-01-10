@@ -5,8 +5,9 @@ const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
 
 class CollaborativePlaylistService {
-  constructor() {
+  constructor(cacheService) {
     this._pool = new Pool();
+    this._cacheService = cacheService;
   }
 
   async addCollaborator(collaboratorId, playlistId) {
@@ -19,6 +20,7 @@ class CollaborativePlaylistService {
     if (!isCollabPlaylistAdded) {
       throw new InvariantError('Gagal membuat collaborative playlist');
     }
+    await this._cacheService.delete(`playlists:${collaboratorId}`);
     return id;
   }
 
@@ -31,6 +33,7 @@ class CollaborativePlaylistService {
     if (!id) {
       throw new NotFoundError('Gagal menghapus collaborative playlist. Alasan: data tidak ditemukan');
     }
+    await this._cacheService.delete(`playlists:${collaboratorId}`);
   }
 
   async verifyCollaborator(collaboratorId, playlistId) {

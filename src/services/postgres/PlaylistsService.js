@@ -5,9 +5,10 @@ const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
 
 class PlaylistsService {
-  constructor(collaborativePlaylistsService) {
+  constructor(collaborativePlaylistsService, cacheService) {
     this._pool = new Pool();
     this._collaborativePlaylistsService = collaborativePlaylistsService;
+    this._cacheService = cacheService;
   }
 
   async addPlaylist({ name, owner }) {
@@ -20,32 +21,44 @@ class PlaylistsService {
     if (!playlistId) {
       throw new InvariantError('Gagal menambahkan Playlist');
     }
+    await this._cacheService.delete(`playlists:${owner}`);
     return playlistId;
   }
 
   async getPlaylistsByOwner(owner) {
-    const result = await this._pool.query({
-      text: `SELECT p.id, p.name, u.username
-      FROM playlists AS p 
-      LEFT JOIN collaborative_playlists AS cp 
-      ON cp.playlist_id = p.id
-      LEFT JOIN users AS u
-      ON u.id = p.owner
-      WHERE p.owner = $1 OR cp.user_id = $1`,
-      values: [owner],
-    });
-    return result.rows;
+    try {
+      const cachedResult = await this._cacheService.get(`playlists:${owner}`);
+      return JSON.parse(cachedResult);
+    } catch {
+      const result = await this._pool.query({
+        text: `SELECT p.id, p.name, u.username
+        FROM playlists AS p 
+        LEFT JOIN collaborative_playlists AS cp 
+        ON cp.playlist_id = p.id
+        LEFT JOIN users AS u
+        ON u.id = p.owner
+        WHERE p.owner = $1 OR cp.user_id = $1`,
+        values: [owner],
+      });
+      const playlists = result.rows;
+      await this._cacheService.set(`playlists:${owner}`, JSON.stringify({
+        playlists,
+        isFromCache: true,
+      }));
+      return { playlists };
+    }
   }
 
   async deletePlaylistById(id) {
     const result = await this._pool.query({
-      text: 'DELETE FROM playlists WHERE id = $1 RETURNING ID',
+      text: 'DELETE FROM playlists WHERE id = $1 RETURNING ID, owner',
       values: [id],
     });
     const playlistId = result.rows[0]?.id;
     if (!playlistId) {
       throw new NotFoundError(`Gagal menghapus playlist. Alasan: playlist dengan id=${id} tidak ditemukan`);
     }
+    await this._cacheService.delete(`playlists:${result.rows[0].owner}`);
   }
 
   async verifyPlaylistOwner(id, owner) {

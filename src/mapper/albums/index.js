@@ -4,7 +4,12 @@ const mapRowsToModel = (rows) => {
   if (!rows.length) {
     throw new InvariantError('Unexpected empty rows');
   }
-  const { id: albumId, name, year } = rows[0];
+  const {
+    id: albumId,
+    name,
+    year,
+    cover_url: coverUrl = null,
+  } = rows[0];
   const songs = [];
   rows.forEach((row) => {
     if (row.id !== albumId) {
@@ -15,12 +20,14 @@ const mapRowsToModel = (rows) => {
       song_title: title,
       song_performer: performer,
     } = row;
+    if (!id || !title || !performer) return;
     songs.push({ id, title, performer });
   });
   return {
     id: albumId,
     name,
     year,
+    coverUrl,
     songs,
   };
 };
