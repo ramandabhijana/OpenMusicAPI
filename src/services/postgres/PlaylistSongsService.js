@@ -10,7 +10,7 @@ class PlaylistSongsService {
     this._playlistActivitiesService = playlistActivitiesService;
   }
 
-  async addToPlaylist(playlistId, { songId, title }, username) {
+  async addToPlaylist(playlistId, songId, username) {
     const id = `playlist_songs-${nanoid(16)}`;
     const result = await this._pool.query({
       text: 'INSERT INTO playlist_songs VALUES($1, $2, $3) RETURNING id',
@@ -20,7 +20,7 @@ class PlaylistSongsService {
     if (!isPlaylistSongAdded) {
       throw new InvariantError('Gagal menambahkan lagu ke playlist');
     }
-    await this._playlistActivitiesService.addActivity(playlistId, { title, username, action: 'add' });
+    await this._playlistActivitiesService.addActivity(playlistId, { songId, username, action: 'add' });
   }
 
   async getPlaylistSongsById(playlistId) {
@@ -42,7 +42,7 @@ class PlaylistSongsService {
     return mapRowsToModel(result.rows);
   }
 
-  async deleteFromPlaylist(playlistId, { songId, title }, username) {
+  async deleteFromPlaylist(playlistId, songId, username) {
     const result = await this._pool.query({
       text: 'DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING id',
       values: [playlistId, songId],
@@ -51,7 +51,7 @@ class PlaylistSongsService {
     if (!id) {
       throw new NotFoundError('Gagal menghapus lagu dari playlist. Alasan: data tidak ditemukan');
     }
-    await this._playlistActivitiesService.addActivity(playlistId, { title, username, action: 'delete' });
+    await this._playlistActivitiesService.addActivity(playlistId, { songId, username, action: 'delete' });
   }
 }
 

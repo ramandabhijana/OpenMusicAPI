@@ -1,4 +1,5 @@
 const ClientError = require('./exceptions/ClientError');
+const config = require('./config');
 
 const interveneInFailedResponse = (server) => {
   server.ext('onPreResponse', (request, h) => {
@@ -33,12 +34,12 @@ const interveneInFailedResponse = (server) => {
 
 const registerAuthStrategy = (server) => {
   server.auth.strategy('openmusic_jwt', 'jwt', {
-    keys: process.env.ACCESS_TOKEN_KEY,
+    keys: config.jwt.accessTokenKey,
     verify: {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+      maxAgeSec: config.jwt.accessTokenAge,
     },
     validate: (artifacts) => ({
       isValid: true,

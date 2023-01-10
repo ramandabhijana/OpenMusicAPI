@@ -31,24 +31,28 @@ class PlaylistHandler {
   async postPlaylistSongByPlaylistIdHandler(request, h) {
     this._validator.validatePostPlaylistSongPayload(request.payload);
     const { songId } = request.payload;
-    const { title } = await this._songsService.getSongById(songId);
+    await this._songsService.verifySongExists(songId);
     const { id: playlistId } = request.params;
     const { credentialId, username } = request.auth.credentials;
     await this._playlistsService.verifyPlaylistAccess(playlistId, credentialId);
-    await this._playlistSongsService.addToPlaylist(playlistId, { songId, title }, username);
+    await this._playlistSongsService.addToPlaylist(playlistId, songId, username);
     return h.response({
       status: 'success',
       message: 'Berhasil menambahkan lagu ke playlist',
     }).code(201);
   }
 
-  async getPlaylistsHandler(request) {
+  async getPlaylistsHandler(request, h) {
     const { credentialId: owner } = request.auth.credentials;
-    const playlists = await this._playlistsService.getPlaylistsByOwner(owner);
-    return {
+    const { playlists, isFromCache } = await this._playlistsService.getPlaylistsByOwner(owner);
+    const response = h.response({
       status: 'success',
       data: { playlists },
-    };
+    });
+    if (isFromCache) {
+      response.header('X-Data-Source', 'cache');
+    }
+    return response;
   }
 
   async getPlaylistSongsByPlaylistIdHandler(request) {
@@ -76,30 +80,34 @@ class PlaylistHandler {
   async deletePlaylistSongByPlaylistIdHandler(request) {
     this._validator.validateDeletePlaylistSongPayload(request.payload);
     const { songId } = request.payload;
-    const { title } = await this._songsService.getSongById(songId);
+    await this._songsService.verifySongExists(songId);
     const { id: playlistId } = request.params;
     const { credentialId, username } = request.auth.credentials;
     await this._playlistsService.verifyPlaylistAccess(playlistId, credentialId);
-    await this._playlistSongsService.deleteFromPlaylist(playlistId, { songId, title }, username);
+    await this._playlistSongsService.deleteFromPlaylist(playlistId, songId, username);
     return {
       status: 'success',
       message: 'Berhasil menghapus lagu dari playlist',
     };
   }
 
-  async getPlaylistActivitiesByPlaylistIdHandler(request) {
+  async getPlaylistActivitiesByPlaylistIdHandler(request, h) {
     const { id: playlistId } = request.params;
     const { credentialId } = request.auth.credentials;
     await this._playlistsService.verifyPlaylistAccess(playlistId, credentialId);
-    const activities = await this._playlistActivitiesService
+    const { activities, isFromCache } = await this._playlistActivitiesService
       .getActivitiesByPlaylistId(playlistId, credentialId);
-    return {
+    const response = h.response({
       status: 'success',
       data: {
         playlistId,
         activities,
       },
-    };
+    });
+    if (isFromCache) {
+      response.header('X-Data-Source', 'cache');
+    }
+    return response;
   }
 }
 

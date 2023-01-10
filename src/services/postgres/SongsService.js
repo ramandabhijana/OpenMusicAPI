@@ -5,8 +5,9 @@ const NotFoundError = require('../../exceptions/NotFoundError');
 const { mapDBToModel } = require('../../mapper/songs');
 
 class SongsService {
-  constructor() {
+  constructor(cacheService) {
     this._pool = new Pool();
+    this._cacheService = cacheService;
   }
 
   async addSong({
@@ -26,6 +27,9 @@ class SongsService {
     const songId = result.rows[0]?.id;
     if (!songId) {
       throw new InvariantError('Gagal menambahkan Lagu');
+    }
+    if (albumId) {
+      await this._cacheService.delete(`album:${albumId}`);
     }
     return songId;
   }
@@ -82,12 +86,16 @@ class SongsService {
   ) {
     const updatedAt = new Date();
     const result = await this._pool.query({
-      text: 'UPDATE songs SET title = $1, year = $2, genre = $3, performer = $4, duration = $5, album_id = $6, updated_at = $7 WHERE id = $8 RETURNING id',
+      text: 'UPDATE songs SET title = $1, year = $2, genre = $3, performer = $4, duration = $5, album_id = $6, updated_at = $7 WHERE id = $8 RETURNING id, album_id',
       values: [title, year, genre, performer, duration, albumId, updatedAt, id],
     });
     const songId = result.rows[0]?.id;
     if (!songId) {
       throw new NotFoundError(`Gagal memperbarui Lagu. Alasan: lagu dengan id=${id} tidak ditemukan`);
+    }
+    const songAlbumId = result.rows[0].album_id;
+    if (songAlbumId) {
+      await this._cacheService.delete(`album:${songAlbumId}`);
     }
     return songId;
   }
@@ -101,7 +109,7 @@ class SongsService {
         [id],
       );
       const deleteSongResult = await client.query(
-        'DELETE FROM songs WHERE id = $1 RETURNING id',
+        'DELETE FROM songs WHERE id = $1 RETURNING id, album_id',
         [id],
       );
       await client.query('COMMIT');
@@ -109,12 +117,27 @@ class SongsService {
       if (!songId) {
         throw new NotFoundError(`Gagal menghapus Lagu. Alasan: lagu dengan id=${id} tidak ditemukan`);
       }
+      const albumId = deleteSongResult.rows[0].album_id;
+      if (albumId) {
+        await this._cacheService.delete(`album:${albumId}`);
+      }
       return songId;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  async verifySongExists(songId) {
+    const result = await this._pool.query({
+      text: 'SELECT id FROM songs WHERE id = $1',
+      values: [songId],
+    });
+    const exists = result.rows[0]?.id === songId;
+    if (!exists) {
+      throw new NotFoundError(`Lagu dengan id=${songId} tidak ditemukan`);
     }
   }
 }
